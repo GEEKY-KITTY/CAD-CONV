@@ -101,7 +101,9 @@ def render_preview(mesh):
     return fig
 
 # --- 5. DATA ---
-if 'page' not in st.session_state: st.session_state.page = "library"
+# CHANGED: Default page is now "converter"
+if 'page' not in st.session_state: st.session_state.page = "converter"
+
 def fetch_assets():
     mock_data = [{"name": "HELIX KEYRING", "type": "BRASS"}, {"name": "SIDEWINDER KNIFE", "type": "STEEL"}]
     if not supabase: return mock_data
@@ -115,29 +117,13 @@ nav = st.container()
 with nav:
     c1, c2, c3 = st.columns([1, 4, 1])
     with c1: 
-        if st.button("GENESIS", key="nav_home"): st.session_state.page = "library"
+        if st.button("GENESIS", key="nav_home"): st.session_state.page = "converter"
     with c3: 
-        if st.button("CONVERTER", key="nav_tool"): st.session_state.page = "converter"
+        if st.button("ARCHIVE", key="nav_lib"): st.session_state.page = "library"
     st.markdown("<hr style='border-top: 1px solid #eee; margin: 10px 0 30px 0;'>", unsafe_allow_html=True)
 
-# --- PAGE: LIBRARY ---
-if st.session_state.page == "library":
-    st.markdown("### ARCHIVE / ASSETS")
-    assets = fetch_assets()
-    rows = [assets[i:i + 3] for i in range(0, len(assets), 3)]
-    for row in rows:
-        cols = st.columns(3)
-        for idx, asset in enumerate(row):
-            with cols[idx]:
-                st.markdown(f"""
-                <div style="background-color: #f9f9f9; height: 200px; width: 100%; margin-bottom: 10px;"></div>
-                <div style="font-weight: 600; font-size: 0.9rem;">{asset['name']}</div>
-                <div style="color: #666; font-size: 0.8rem;">{asset['type']}</div>
-                <div style="margin-bottom: 30px;"></div>
-                """, unsafe_allow_html=True)
-
-# --- PAGE: CONVERTER ---
-elif st.session_state.page == "converter":
+# --- PAGE: CONVERTER (DEFAULT) ---
+if st.session_state.page == "converter":
     col_view, col_ctrl = st.columns([1.5, 1], gap="large")
     
     uploaded_file = None 
@@ -214,7 +200,8 @@ elif st.session_state.page == "converter":
                         mime="image/png"
                     )
                 except Exception as e:
-                    st.warning("Render engine busy. Refresh to capture.")
+                    # More detailed error message for debugging
+                    st.warning(f"Render Busy (Needs Kaleido in Docker): {e}")
             
             with d2:
                 # 3D FILE DOWNLOAD
@@ -228,3 +215,19 @@ elif st.session_state.page == "converter":
         else:
             st.markdown("### VISUALIZER")
             st.markdown("<div style='border:1px solid #eee; height:450px; display:flex; align-items:center; justify-content:center; color:#999; background:#fafafa;'>Drop STEP file to preview</div>", unsafe_allow_html=True)
+
+# --- PAGE: LIBRARY ---
+elif st.session_state.page == "library":
+    st.markdown("### ARCHIVE / ASSETS")
+    assets = fetch_assets()
+    rows = [assets[i:i + 3] for i in range(0, len(assets), 3)]
+    for row in rows:
+        cols = st.columns(3)
+        for idx, asset in enumerate(row):
+            with cols[idx]:
+                st.markdown(f"""
+                <div style="background-color: #f9f9f9; height: 200px; width: 100%; margin-bottom: 10px;"></div>
+                <div style="font-weight: 600; font-size: 0.9rem;">{asset['name']}</div>
+                <div style="color: #666; font-size: 0.8rem;">{asset['type']}</div>
+                <div style="margin-bottom: 30px;"></div>
+                """, unsafe_allow_html=True)
