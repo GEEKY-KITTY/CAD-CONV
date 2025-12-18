@@ -6,128 +6,119 @@ import tempfile
 import os
 import plotly.graph_objects as go
 import time
-from io import BytesIO
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="GENESIS CONVERTER",  # REBRANDED
-    page_icon="⚙️",
+    page_title="GENESIS CONVERTER",
+    page_icon="💠",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. GENESIS UI THEME (Shared Design Language) ---
+# --- 2. MODERN LIGHT THEME CSS ---
 st.markdown("""
     <style>
-    /* FONTS */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap');
 
-    /* GLOBAL THEME */
+    /* RESET & BACKGROUND */
     .stApp {
-        background: #050505;
-        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc; /* Very light blue-grey */
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
-    /* ANIMATED BACKGROUND (The "Engineering Void") */
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100vw; height: 100vh;
-        background: 
-            radial-gradient(circle at 10% 20%, rgba(0, 255, 157, 0.08), transparent 20%), 
-            radial-gradient(circle at 90% 80%, rgba(0, 163, 255, 0.08), transparent 20%);
-        z-index: -1;
-        pointer-events: none;
+    /* REMOVE DEFAULT PADDING */
+    .block-container {
+        padding-top: 3rem;
+        padding-bottom: 5rem;
     }
 
     /* TYPOGRAPHY */
-    h1, h2, h3 { color: #fff; font-weight: 800; letter-spacing: -0.02em; }
+    h1, h2, h3 {
+        color: #0f172a; /* Slate 900 */
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
     h1 {
-        background: linear-gradient(90deg, #fff, #94a3b8);
+        font-size: 3.5rem !important;
+        background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 2.5rem !important;
     }
-    p, li { color: #94a3b8; font-weight: 300; line-height: 1.6; font-size: 1.05rem; }
-    strong { color: #fff; font-weight: 600; }
+    p, li, label {
+        color: #475569; /* Slate 600 */
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
 
-    /* GLASSMORPHISM CARDS */
+    /* CARDS (The white boxes) */
     div[data-testid="stVerticalBlock"] > div {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 25px;
-        backdrop-filter: blur(10px);
+        background-color: #ffffff;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid #e2e8f0;
     }
-    .main > div { background: transparent !important; border: none !important; }
-
-    /* BUTTONS */
+    
+    /* FIX THE BUTTONS / NAV CARDS */
     div.stButton > button {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%); /* Emerald Green Theme */
+        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); /* Indigo */
         color: white;
         border: none;
-        padding: 0.6rem 1.5rem;
-        border-radius: 6px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s ease;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1rem;
         width: 100%;
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
     }
     div.stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 20px -10px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.3);
     }
-
-    /* UPLOADER STYLE */
+    
+    /* FILE UPLOADER */
     .stFileUploader {
-        border: 2px dashed #333;
-        border-radius: 10px;
-        padding: 20px;
-        text-align: center;
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 40px;
+        background-color: #f1f5f9;
         transition: border-color 0.3s;
     }
-    .stFileUploader:hover { border-color: #10b981; }
+    .stFileUploader:hover { border-color: #4f46e5; }
+    
+    /* REMOVE CARD STYLE FROM MAIN LAYOUT (So columns don't look boxed) */
+    .main > div { background: transparent !important; border: none !important; box-shadow: none !important; }
 
-    /* METRIC CARDS */
-    div[data-testid="stMetricValue"] {
-        font-family: 'JetBrains Mono', monospace;
-        color: #10b981 !important;
-    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. LOGIC FUNCTIONS ---
-def convert_step_to_stl(step_file_path, stl_file_path):
-    """Core Engine: Converts STEP to STL using CadQuery."""
-    # Import
-    model = cq.importers.importStep(step_file_path)
-    # Export
-    cq.exporters.export(model, stl_file_path)
+def convert_step_to_stl(step_path, stl_path):
+    model = cq.importers.importStep(step_path)
+    cq.exporters.export(model, stl_path)
     return model
 
 def get_mesh_data(stl_path):
-    """Analysis Engine: Extracts physical properties."""
-    mesh = trimesh.load(stl_path)
-    return mesh
+    return trimesh.load(stl_path)
 
 def render_interactive(mesh):
-    """Visualization Engine: High-fidelity rendering."""
     x, y, z = mesh.vertices.T
     i, j, k = mesh.faces.T
     fig = go.Figure(data=[go.Mesh3d(
         x=x, y=y, z=z, i=i, j=j, k=k,
-        color='#10b981', # Emerald Green
-        opacity=0.90,
+        color='#4f46e5', 
+        opacity=0.95,
         name='Model',
         flatshading=False,
-        lighting=dict(ambient=0.3, diffuse=0.6, roughness=0.1, specular=0.4)
+        lighting=dict(ambient=0.4, diffuse=0.5, roughness=0.1, specular=0.4)
     )])
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
             bgcolor='rgba(0,0,0,0)',
-            camera=dict(eye=dict(x=1.4, y=1.4, z=1.4))
+            camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
         ),
         margin=dict(l=0, r=0, b=0, t=0),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -135,167 +126,115 @@ def render_interactive(mesh):
     )
     return fig
 
-# --- 4. NAVIGATION STATE ---
+# --- 4. NAVIGATION ---
 if 'page' not in st.session_state:
     st.session_state.page = "tool"
 
-# Navbar
-c1, c2, c3 = st.columns([1, 1, 6])
+# HERO HEADER
+c1, c2 = st.columns([2, 1])
 with c1:
-    if st.button("🛠️ CONVERTER"): st.session_state.page = "tool"
+    st.markdown("# GENESIS **CONVERTER**")
+    st.markdown("### The Bridge Between Parametric Design & Digital Manufacturing.")
+    st.markdown("Transform mathematical STEP files into production-ready meshes with a single click.")
 with c2:
-    if st.button("📚 KNOWLEDGE"): st.session_state.page = "info"
+    # Use a nice abstract 3D illustration
+    st.image("https://images.unsplash.com/photo-1633613286991-611fe299c4be?q=80&w=2070&auto=format&fit=crop", use_container_width=True)
 
 st.markdown("---")
 
-# --- PAGE 1: THE TOOL (Converter) ---
+# NAVIGATION BAR (Fixed Widths to prevent ugly squashing)
+col_nav1, col_nav2, col_spacer = st.columns([1, 1, 4])
+with col_nav1:
+    if st.button("🛠️ LAUNCH TOOL"): st.session_state.page = "tool"
+with col_nav2:
+    if st.button("📚 READ GUIDE"): st.session_state.page = "info"
+
+# --- PAGE 1: THE TOOL ---
 if st.session_state.page == "tool":
+    st.markdown("## **Workspace**")
     
-    # Generic Professional Header
-    st.markdown("<h1>GENESIS <span style='color:#10b981'>CONVERTER</span></h1>", unsafe_allow_html=True)
-    st.markdown("<p>Professional Grade STEP-to-STL Translation Engine with Geometric Analysis.</p>", unsafe_allow_html=True)
-
-    col_upload, col_view = st.columns([1, 2], gap="large")
-
-    with col_upload:
-        st.subheader("1. INGESTION")
-        uploaded_file = st.file_uploader("Upload .STEP / .STP File", type=["step", "stp"])
+    c_upload, c_view = st.columns([1, 2], gap="large")
+    
+    with c_upload:
+        st.info("**Step 1:** Upload your geometry.")
+        uploaded_file = st.file_uploader("Drop STEP file here", type=["step", "stp"])
         
         if uploaded_file:
-            st.success(f"File loaded: {uploaded_file.name}")
-            
-            # Processing Hook
+            # SAVE & CONVERT
             with tempfile.TemporaryDirectory() as temp_dir:
                 step_path = os.path.join(temp_dir, "input.step")
                 stl_path = os.path.join(temp_dir, "output.stl")
                 
-                # Write to temp
                 with open(step_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 
-                # CONVERT
-                with st.spinner("Processing Geometry... Tessellating Surfaces..."):
+                with st.spinner("Tessellating Surfaces..."):
                     try:
                         convert_step_to_stl(step_path, stl_path)
-                        mesh = get_mesh_data(stl_path)
-                        
-                        # Store in session state for the view column
-                        st.session_state.mesh = mesh
+                        st.session_state.mesh = get_mesh_data(stl_path)
                         with open(stl_path, "rb") as f:
                             st.session_state.stl_data = f.read()
-                            
                     except Exception as e:
-                        st.error("Conversion Failed. File may be corrupted or non-manifold.")
-                        st.error(e)
+                        st.error(f"Error: {e}")
 
             if 'stl_data' in st.session_state:
-                st.subheader("3. EXPORT")
+                st.success("Conversion Complete!")
                 st.download_button(
-                    label="💾 DOWNLOAD .STL",
+                    "⬇️ Download .STL File",
                     data=st.session_state.stl_data,
-                    file_name=uploaded_file.name.replace(".step", ".stl").replace(".stp", ".stl"),
-                    mime="model/stl"
+                    file_name="converted_model.stl",
+                    mime="model/stl",
+                    use_container_width=True
                 )
 
-    with col_view:
-        st.subheader("2. ANALYSIS & VISUALIZATION")
-        
+    with c_view:
         if 'mesh' in st.session_state:
-            mesh = st.session_state.mesh
-            
-            # Metrics Row
+            st.markdown("#### **Interactive Preview**")
+            # Metrics
             m1, m2, m3 = st.columns(3)
-            m1.metric("Volume", f"{mesh.volume/1000:.2f} cm³")
-            m2.metric("Vertices", f"{len(mesh.vertices):,}")
-            m3.metric("Faces", f"{len(mesh.faces):,}")
+            mesh = st.session_state.mesh
+            m1.metric("Volume (cm³)", f"{mesh.volume/1000:.2f}")
+            m2.metric("Faces", f"{len(mesh.faces):,}")
+            m3.metric("Watertight", str(mesh.is_watertight))
             
-            # 3D Render
             st.plotly_chart(render_interactive(mesh), use_container_width=True)
-            
-            if not mesh.is_watertight:
-                st.warning("⚠ WARNING: Mesh is not watertight (Non-Manifold). May fail 3D printing.")
-            else:
-                st.markdown("✅ **Status:** Manifold / Watertight (Ready for Print)")
         else:
-            # Empty State
-            st.info("Awaiting Input File...")
-            st.markdown("""
-            <div style='text-align: center; opacity: 0.3; padding: 50px;'>
-                <h1>🧊</h1>
-                <p>Upload a file to visualize</p>
-            </div>
-            """, unsafe_allow_html=True)
+            # Placeholder Image
+            st.image("https://plus.unsplash.com/premium_photo-1661963874418-d111a31a306c?q=80&w=2070&auto=format&fit=crop", caption="Awaiting Geometry...", use_container_width=True)
 
-# --- PAGE 2: KNOWLEDGE BASE (History & Research) ---
+# --- PAGE 2: KNOWLEDGE BASE ---
 elif st.session_state.page == "info":
     
-    st.markdown("<h1>THE EVOLUTION OF <span style='color:#10b981'>CAD</span></h1>", unsafe_allow_html=True)
+    # ILLUSTRATED HEADER
+    st.image("https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop", use_container_width=True)
     
-    # 1. HISTORY SECTION
-    st.markdown("### 🏛️ FROM SKETCHPAD TO CLOUD")
-    st.markdown("""
-    The journey of Computer-Aided Design (CAD) is the story of humanity transitioning from physical abstraction to digital precision.
+    st.markdown("## **The Engineering Handbook**")
     
-    * **1963: The Genesis (Sketchpad):** Ivan Sutherland developed *Sketchpad* at MIT. It was the first time a human interacted with a computer graphically. It introduced the concept of "constraints" and "instancing."
-    * **1970s: The 2D Era:** Systems like *AutoCAD* replaced drafting tables. While revolutionary, they were essentially "digital paper"—lines and arcs without physical awareness.
-    * **1990s: Solid Modeling:** Tools like *SolidWorks* and *Pro/ENGINEER* introduced Parametric Modeling. Designers could now define relationships (e.g., "This hole is always 5mm from the edge").
-    * **2010s: Cloud & Simulation:** *Fusion 360* and *Onshape* moved CAD to the cloud, allowing real-time collaboration and integrating FEM (Finite Element Method) simulation directly into the design workflow.
-    * **Now:** We are entering the age of **Generative Design**, where AI acts as a co-pilot, suggesting topologies based on load constraints.
-    """)
+    col_text, col_details = st.columns([2, 1], gap="large")
     
-    st.markdown("---")
-    
-    # 2. DESIGN PROCESS SECTION
-    st.markdown("### 📐 THE MODERN DESIGN LIFECYCLE")
-    c1, c2 = st.columns([1, 1])
-    
-    with c1:
+    with col_text:
         st.markdown("""
-        **PHASE 1: IDEATION & CONSTRAINT MAPPING**
-        Before a single line is drawn, the engineer must define the 'Physics of the Problem'.
-        * *Load Cases:* What forces will the part endure?
-        * *Material Constraints:* Is it Aluminum 6061 or PLA Plastic?
-        * *Assembly Context:* How does it fit with other parts?
+        ### Why do we convert STEP to STL?
         
-        **PHASE 2: TOPOLOGY & MODELING**
-        Using Constructive Solid Geometry (CSG):
-        1.  **Sketching:** Defining 2D profiles on planes.
-        2.  **Extrusion/Revolution:** Adding the Z-axis to create mass.
-        3.  **Boolean Operations:** Cutting holes or adding bosses.
-        4.  **Filleting:** Reducing stress concentrations at sharp corners.
+        **STEP (Standard for the Exchange of Product model data)** is a "Brep" format. It uses mathematical formulas to define curves and surfaces. It is infinite resolution.
+        
+        **STL (Stereolithography)** is a "Mesh" format. It uses thousands of tiny triangles to approximate the shape. 
+        
+        **The Problem:** 3D Printers and Game Engines cannot read math formulas. They only understand triangles.
+        
+        **The Solution:** This tool "Tessellates" the model—it calculates exactly where to place triangles to match the mathematical curve as closely as possible.
         """)
         
-    with c2:
+        st.markdown("### Best Practices for DFM (Design for Mfg)")
         st.markdown("""
-        **PHASE 3: SIMULATION (CAE)**
-        We test without building. Using FEA (Finite Element Analysis), we simulate stress, heat, and fluid flow. If the Safety Factor < 1.5, we return to Phase 2.
-        
-        **PHASE 4: DESIGN FOR MANUFACTURING (DFM)**
-        The model must be buildable.
-        * *For CNC:* Are there undercuts? Is the tool radius too large?
-        * *For 3D Printing:* Are overhangs > 45 degrees? Is the mesh watertight?
-        * *For Injection Molding:* Do we have draft angles?
+        * **Wall Thickness:** Ensure walls are > 1.2mm for injection molding.
+        * **Draft Angles:** Add 2° draft to vertical walls so the part can eject from the mold.
+        * **Fillets:** Add radii to internal corners to reduce stress concentrations.
         """)
 
-    st.markdown("---")
-
-    # 3. PROS & CONS
-    st.markdown("### ⚖️ CAD VS. TRADITIONAL DRAFTING")
-    
-    col_pros, col_cons = st.columns(2)
-    with col_pros:
-        st.success("**THE ADVANTAGES (PROS)**")
-        st.markdown("""
-        * **Infinite Iteration:** Changing a dimension updates the entire assembly instantly.
-        * **Precision:** Mathematical accuracy down to the micron.
-        * **Simulation:** Ability to test failure points before wasting material.
-        * **CAM Integration:** Direct output to CNC machines and 3D printers.
-        """)
+    with col_details:
+        st.info("💡 **Did you know?**")
+        st.markdown("The STL format was invented in 1987 by 3D Systems specifically for the first SLA printers. It is over 35 years old and still the standard!")
         
-    with col_cons:
-        st.error("**THE CHALLENGES (CONS)**")
-        st.markdown("""
-        * **The "Perfect" Trap:** Designers can obsess over details that don't matter in the real world.
-        * **Loss of Scale:** On a screen, a 10m wall looks the same as a 10mm clip.
-        * **Complexity:** The learning curve for parametric constraints is steep.
-        """)
+        st.warning("⚠️ **Common Error**")
+        st.markdown("**Non-Manifold Geometry:** If your STEP file has a 'gap' between surfaces, the STL will have a hole. This causes prints to fail. Always check the 'Watertight' metric in this tool.")
