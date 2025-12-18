@@ -1,9 +1,9 @@
 FROM continuumio/miniconda3
 
-# 1. Set up the working folder
 WORKDIR /app
 
-# 2. Install Linux System Libraries (Required for 3D Graphics)
+# 1. Install Linux System Libraries
+# These are required for the 3D geometry engine to run
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -11,17 +11,16 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Install the CAD Engine via Conda (The heavy lifter)
+# 2. Install CadQuery (The Geometry Kernel)
 RUN conda install -c cadquery -c conda-forge cadquery=master -y
 
-# 4. Install Web & Analysis Tools (Updated to include 'feedparser')
-RUN pip install streamlit trimesh plotly scipy numpy shapely path feedparser
+# 3. Install Python Tools
+# Removed 'feedparser' since we removed the News section
+RUN pip install streamlit trimesh plotly scipy numpy shapely path
 
-# 5. Copy your code into the container
+# 4. Copy Application Files
 COPY . .
 
-# 6. Open the port for the website
+# 5. Launch Command
 EXPOSE 8501
-
-# 7. Launch the app
 CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
