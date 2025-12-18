@@ -20,4 +20,4 @@ jobs:
         # TRIPLE CHECK THIS LINE BELOW:
         # Replace 'anxieTEA' with your HF username
         # Replace 'cad-3d-tool' with your exact Space name
-        run: git push https://anxieTEA:$HF_TOKEN@huggingface.co/spaces/anxieTEA/CAD-TOOL main
+        run: git push --force https://anxieTEA:$HF_TOKEN@huggingface.co/spaces/anxieTEA/CAD-TOOL main
