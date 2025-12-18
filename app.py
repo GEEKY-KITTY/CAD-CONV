@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. BACKEND CONNECTIONS ---
+# --- 2. DATABASE ---
 @st.cache_resource
 def init_connection():
     try:
@@ -30,7 +30,7 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 3. CRAIGHILL DESIGN SYSTEM ---
+# --- 3. CRAIGHILL DESIGN CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
@@ -54,18 +54,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. ENGINE (CONVERSION & RENDERING) ---
+# --- 4. ENGINE (CONVERSION + RENDERING) ---
 def convert_geometry(step_path, export_path, format_key):
-    """Universal Converter using CadQuery & Trimesh."""
+    """Universal Converter with Mesh Repair."""
     model = cq.importers.importStep(step_path)
     
+    # Direct Exports
     if format_key in ["STL", "AMF"]:
         cq.exporters.export(model, export_path, format_key)
         return model
 
+    # Complex Exports (OBJ, GLTF, etc.)
     with tempfile.NamedTemporaryFile(suffix=".stl", delete=False) as tmp:
         cq.exporters.export(model, tmp.name, "STL")
+        # Load and Repair Mesh (Fixes "Black Blob" issues)
         mesh = trimesh.load(tmp.name)
+        mesh.fix_normals() 
     
     ext_map = {"OBJ": "obj", "GLTF": "glb", "3MF": "3mf", "PLY": "ply"}
     if format_key in ext_map:
@@ -74,34 +78,51 @@ def convert_geometry(step_path, export_path, format_key):
     return model
 
 def render_preview(mesh):
-    """Generates an ISOMETRIC engineering view."""
+    """
+    High-Fidelity 'Satin Metal' Render.
+    Uses calculated vertex normals for smooth curves and sharp highlights.
+    """
+    # Ensure normals are computed so it captures light correctly
+    mesh.fix_normals()
+    
     x, y, z = mesh.vertices.T
     i, j, k = mesh.faces.T
     
     fig = go.Figure(data=[go.Mesh3d(
         x=x, y=y, z=z, i=i, j=j, k=k,
-        color='#e5e5e5', 
+        color='#dbeafe', # Very light blue-white (Steel look)
         opacity=1.0, 
-        flatshading=True,
-        lighting=dict(ambient=0.4, diffuse=0.6, roughness=0.1, specular=0.3, fresnel=0.1),
-        lightposition=dict(x=100, y=200, z=500)
+        
+        # LIGHTING PHYSICS
+        flatshading=True, # True = Machined Look, False = Organic
+        lighting=dict(
+            ambient=0.6,      # Brighter shadows (was 0.4)
+            diffuse=0.9,      # Brighter surfaces
+            roughness=0.1,    # Smoother (Metal-like)
+            specular=1.5,     # Strong highlights (Shiny)
+            fresnel=0.5       # Rim lighting effect
+        ),
+        lightposition=dict(x=1000, y=1000, z=2000) # Light from top-right-front
     )])
     
+    # ISOMETRIC STUDIO CAMERA
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
             bgcolor='rgba(0,0,0,0)',
             aspectmode='data',
-            camera=dict(projection=dict(type='orthographic'), eye=dict(x=1.25, y=1.25, z=1.25))
+            camera=dict(
+                projection=dict(type='orthographic'), 
+                eye=dict(x=1.1, y=1.1, z=1.1)
+            )
         ),
         margin=dict(l=0, r=0, b=0, t=0),
-        height=450,
+        height=500,
         paper_bgcolor='rgba(0,0,0,0)'
     )
     return fig
 
 # --- 5. DATA ---
-# CHANGED: Default page is now "converter"
 if 'page' not in st.session_state: st.session_state.page = "converter"
 
 def fetch_assets():
@@ -122,9 +143,9 @@ with nav:
         if st.button("ARCHIVE", key="nav_lib"): st.session_state.page = "library"
     st.markdown("<hr style='border-top: 1px solid #eee; margin: 10px 0 30px 0;'>", unsafe_allow_html=True)
 
-# --- PAGE: CONVERTER (DEFAULT) ---
+# --- PAGE: CONVERTER ---
 if st.session_state.page == "converter":
-    col_view, col_ctrl = st.columns([1.5, 1], gap="large")
+    col_view, col_ctrl = st.columns([1.8, 1], gap="large") # Gave more space to Viewport
     
     uploaded_file = None 
     
@@ -132,10 +153,10 @@ if st.session_state.page == "converter":
         st.markdown("### IMPORT")
         uploaded_file = st.file_uploader("Upload STEP File", type=["step", "stp"], label_visibility="collapsed")
         
-        # AUTO-PREVIEW
+        # AUTO-PREVIEW LOGIC
         if uploaded_file:
             if "current_file" not in st.session_state or st.session_state.current_file != uploaded_file.name:
-                with st.spinner("Analyzing Geometry..."):
+                with st.spinner("Processing Geometry..."):
                     with tempfile.TemporaryDirectory() as temp_dir:
                         step_path = os.path.join(temp_dir, "preview.step")
                         stl_path = os.path.join(temp_dir, "preview.stl")
@@ -176,45 +197,28 @@ if st.session_state.page == "converter":
 
     with col_view:
         if 'mesh' in st.session_state:
-            st.markdown("### ISOMETRIC STUDIO")
-            # 1. Render Chart
+            st.markdown("### STUDIO PREVIEW")
+            # Render Chart
             fig = render_preview(st.session_state.mesh)
             st.plotly_chart(fig, use_container_width=True)
             
-            # 2. Controls & Downloads
+            # Info & Downloads
             m = st.session_state.mesh
-            st.caption(f"Geometry: {len(m.vertices):,} Vertices | {len(m.faces):,} Faces")
+            st.caption(f"Geometry: {len(m.vertices):,} Vertices | {len(m.faces):,} Faces | Vol: {m.volume/1000:.2f}cc")
             
-            # DOWNLOAD ROW
             d1, d2 = st.columns([1, 1])
-            
             with d1:
-                # IMAGE GENERATION
                 try:
-                    # Generate High-Res PNG
                     img_bytes = fig.to_image(format="png", width=2000, height=1500, scale=2)
-                    st.download_button(
-                        label="📷 SAVE RENDER (PNG)",
-                        data=img_bytes,
-                        file_name="genesis_render.png",
-                        mime="image/png"
-                    )
-                except Exception as e:
-                    # More detailed error message for debugging
-                    st.warning(f"Render Busy (Needs Kaleido in Docker): {e}")
-            
+                    st.download_button("📷 SAVE RENDER", img_bytes, "genesis_render.png", "image/png")
+                except Exception:
+                    st.warning("Render engine busy.")
             with d2:
-                # 3D FILE DOWNLOAD
                 if 'dl_data' in st.session_state:
-                    st.download_button(
-                        label=f"⬇ SAVE {export_fmt}",
-                        data=st.session_state.dl_data,
-                        file_name=st.session_state.dl_name,
-                        mime=st.session_state.dl_mime
-                    )
+                    st.download_button(f"⬇ SAVE {export_fmt}", st.session_state.dl_data, st.session_state.dl_name, st.session_state.dl_mime)
         else:
             st.markdown("### VISUALIZER")
-            st.markdown("<div style='border:1px solid #eee; height:450px; display:flex; align-items:center; justify-content:center; color:#999; background:#fafafa;'>Drop STEP file to preview</div>", unsafe_allow_html=True)
+            st.markdown("<div style='border:1px solid #eee; height:500px; display:flex; align-items:center; justify-content:center; color:#999; background:#fafafa;'>Drop STEP file to preview</div>", unsafe_allow_html=True)
 
 # --- PAGE: LIBRARY ---
 elif st.session_state.page == "library":
