@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. SUPABASE CONNECTION (Keep your backend!) ---
+# --- 2. SUPABASE CONNECTION ---
 @st.cache_resource
 def init_connection():
     try:
@@ -30,10 +30,9 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 3. CRAIGHILL-INSPIRED CSS (The "Shop" Look) ---
+# --- 3. CRAIGHILL-INSPIRED CSS ---
 st.markdown("""
     <style>
-    /* IMPORT FONTS (Inter for that clean look) */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
     /* GLOBAL RESET */
@@ -43,7 +42,7 @@ st.markdown("""
         color: #1a1a1a;
     }
     
-    /* REMOVE ALL STREAMLIT PADDING */
+    /* REMOVE PADDING */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 5rem !important;
@@ -59,67 +58,12 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* NAV BAR (Custom HTML) */
-    .nav-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 0;
-        border-bottom: 1px solid #f0f0f0;
-        margin-bottom: 40px;
-    }
-    .nav-logo {
-        font-size: 1.5rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: #000;
-        text-decoration: none;
-    }
-    .nav-links {
-        display: flex;
-        gap: 30px;
-    }
-    .nav-item {
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        color: #000;
-        font-weight: 500;
-        cursor: pointer;
-        letter-spacing: 0.05em;
-    }
-    .nav-item:hover { text-decoration: underline; }
-
-    /* PRODUCT GRID (The Library) */
-    .product-card {
-        cursor: pointer;
-        margin-bottom: 40px;
-    }
-    .product-img {
-        width: 100%;
-        height: 300px;
-        object-fit: cover;
-        background-color: #f4f4f4; /* Light gray placeholder like Craighill */
-        margin-bottom: 15px;
-    }
-    .product-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #000;
-        margin: 0;
-    }
-    .product-price {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 5px;
-    }
-
-    /* BUTTONS (Square, Black, Minimal) */
+    /* BUTTONS */
     div.stButton > button {
         background-color: #000000;
         color: #ffffff;
         border: 1px solid #000000;
-        border-radius: 0px; /* SHARP CORNERS */
+        border-radius: 0px;
         padding: 1rem 2rem;
         font-weight: 500;
         text-transform: uppercase;
@@ -133,7 +77,7 @@ st.markdown("""
         color: #000000;
     }
     
-    /* UPLOAD BOX (Minimal) */
+    /* UPLOAD BOX */
     .stFileUploader {
         border: 1px solid #e0e0e0;
         padding: 40px;
@@ -146,19 +90,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. DATA SIMULATION (MOCK PRODUCTS) ---
+# --- 4. DATA MOCK & FETCH ---
 if 'page' not in st.session_state: st.session_state.page = "library"
 
-# Mimic the high-end photos from Craighill using Unsplash
 mock_images = [
-    "https://images.unsplash.com/photo-1586022137667-17eb1082697e?q=80&w=800&auto=format&fit=crop", # Metallic
-    "https://images.unsplash.com/photo-1618419266782-62281fa04910?q=80&w=800&auto=format&fit=crop", # Geometric
-    "https://images.unsplash.com/photo-1535384661727-b06d87786196?q=80&w=800&auto=format&fit=crop", # Tech
-    "https://images.unsplash.com/photo-1555664424-778a696fa8db?q=80&w=800&auto=format&fit=crop", # Electronics
+    "https://images.unsplash.com/photo-1586022137667-17eb1082697e?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1618419266782-62281fa04910?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1535384661727-b06d87786196?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1555664424-778a696fa8db?q=80&w=800&auto=format&fit=crop",
 ]
 
 def fetch_assets():
-    if not supabase: # Fallback data
+    if not supabase: 
         return [
             {"name": "HELIX KEYRING", "type": "BRASS", "img": mock_images[0]},
             {"name": "SIDEWINDER KNIFE", "type": "STEEL", "img": mock_images[1]},
@@ -167,8 +110,10 @@ def fetch_assets():
         ]
     try:
         data = supabase.table("assets").select("*").order("created_at", desc=True).execute().data
-        # Attach random images to real data for the look
-        for item in data: item['img'] = random.choice(mock_images)
+        for item in data: 
+            # If no image in DB, verify one from mock list
+            if 'img' not in item:
+                item['img'] = random.choice(mock_images)
         return data
     except: return []
 
@@ -181,5 +126,97 @@ def convert_step_to_stl(step_path, stl_path):
 def render_preview(mesh):
     x, y, z = mesh.vertices.T
     i, j, k = mesh.faces.T
+    
+    # THIS WAS THE BLOCK CAUSING ERRORS - BRACKETS ARE FIXED NOW
     fig = go.Figure(data=[go.Mesh3d(
-        x=x, y=y, z=z, i=i, j=j, k=
+        x=x, y=y, z=z, i=i, j=j, k=k,
+        color='#e5e5e5', 
+        opacity=1.0, 
+        flatshading=True,
+        lighting=dict(ambient=0.5, diffuse=0.5, roughness=0.1, specular=0.1)
+    )])
+    
+    fig.update_layout(
+        scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False, bgcolor='white'),
+        margin=dict(l=0,r=0,b=0,t=0), height=500
+    )
+    return fig
+
+# --- 6. NAVIGATION HEADER ---
+c_head = st.container()
+with c_head:
+    cols = st.columns([1, 4, 1, 1])
+    with cols[0]:
+        if st.button("GENESIS", key="home"): st.session_state.page = "library"
+    with cols[2]:
+        if st.button("SHOP", key="nav_shop"): st.session_state.page = "library"
+    with cols[3]:
+        if st.button("CREATE", key="nav_tool"): st.session_state.page = "converter"
+    st.markdown("<div style='height: 1px; background: #eee; margin: 20px 0 40px 0;'></div>", unsafe_allow_html=True)
+
+# --- PAGE: SHOP (LIBRARY) ---
+if st.session_state.page == "library":
+    st.markdown("### DAILY CARRY / ARCHIVE")
+    st.markdown("<p style='font-size: 0.9rem; color: #666; max-width: 600px; margin-bottom: 40px;'>These are our daily necessities, the engineering assets you will reach for time and time again.</p>", unsafe_allow_html=True)
+    
+    assets = fetch_assets()
+    rows = [assets[i:i + 3] for i in range(0, len(assets), 3)]
+    
+    for row in rows:
+        cols = st.columns(3)
+        for idx, asset in enumerate(row):
+            with cols[idx]:
+                st.image(asset.get('img', mock_images[0]), use_container_width=True)
+                st.markdown(f"""
+                <div style="margin-top: 10px;">
+                    <div style="font-weight: 600; font-size: 0.95rem; letter-spacing: 0.02em;">{asset['name']}</div>
+                    <div style="color: #666; font-size: 0.85rem; margin-top: 2px;">{asset['type']}</div>
+                    <div style="color: #000; font-size: 0.85rem; margin-top: 5px;">$ DOWNLOAD</div>
+                </div>
+                <br>
+                """, unsafe_allow_html=True)
+
+# --- PAGE: CREATE (CONVERTER) ---
+elif st.session_state.page == "converter":
+    col_img, col_info = st.columns([1.5, 1], gap="large")
+    
+    with col_img:
+        if 'mesh' in st.session_state:
+            st.plotly_chart(render_preview(st.session_state.mesh), use_container_width=True)
+        else:
+            st.image("https://images.unsplash.com/photo-1629737683709-e85df649f875?q=80&w=1200", caption="Awaiting Geometry Input")
+
+    with col_info:
+        st.markdown("<h1>GENESIS CONVERTER</h1>")
+        st.markdown("<p style='font-size: 1.1rem; color: #444; margin-bottom: 30px;'>Transform mathematical STEP files into production-ready STL meshes.</p>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        uploaded_file = st.file_uploader("UPLOAD GEOMETRY (STEP)", type=["step", "stp"])
+        c_check = st.checkbox("ADD TO ARCHIVE", value=True)
+        c_type = st.selectbox("MATERIAL / TYPE", ["STAINLESS STEEL", "BRASS", "VAPOR BLACK", "ALUMINUM"])
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if uploaded_file:
+            if st.button("PROCESS GEOMETRY — FREE"):
+                with st.spinner("PROCESSING..."):
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        step_path = os.path.join(temp_dir, "in.step")
+                        stl_path = os.path.join(temp_dir, "out.stl")
+                        with open(step_path, "wb") as f: f.write(uploaded_file.getbuffer())
+                        
+                        try:
+                            convert_step_to_stl(step_path, stl_path)
+                            st.session_state.mesh = trimesh.load(stl_path)
+                            with open(stl_path, "rb") as f: st.session_state.stl_data = f.read()
+                            
+                            if c_check and supabase:
+                                supabase.table("assets").insert({
+                                    "name": uploaded_file.name.split('.')[0].upper(),
+                                    "type": c_type,
+                                    "author": "GUEST"
+                                }).execute()
+                        except Exception as e:
+                            st.error(f"ERROR: {e}")
+
+            if 'stl_data' in st.session_state:
+                st.download_button("DOWNLOAD ARTIFACT (.STL)", st.session_state.stl_data, "genesis.stl", "model/stl")
