@@ -127,7 +127,7 @@ def render_preview(mesh):
     x, y, z = mesh.vertices.T
     i, j, k = mesh.faces.T
     
-    # THIS WAS THE BLOCK CAUSING ERRORS - BRACKETS ARE FIXED NOW
+    # BRACKETS ARE CHECKED HERE
     fig = go.Figure(data=[go.Mesh3d(
         x=x, y=y, z=z, i=i, j=j, k=k,
         color='#e5e5e5', 
